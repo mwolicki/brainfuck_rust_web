@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-use std::num::Wrapping;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::os::raw::c_char;
 
-#[derive(Debug)]
 enum Op {
     IncPointer,
     DecPointer,
@@ -15,10 +12,9 @@ enum Op {
     While { ops: Vec<Op> },
 }
 
-#[derive(Debug, Clone)]
 struct State {
-    curr_ptr: i32,
-    data: HashMap<i32, u8>,
+    curr_ptr: usize,
+    data: [u8; 4092],
     output: String,
 }
 
@@ -27,7 +23,7 @@ extern "C" {
 }
 
 fn eval_while(state: &mut State, ops: &[Op]) {
-    while *(state.data.entry(state.curr_ptr).or_insert(0)) != 0 {
+    while state.data[state.curr_ptr] != 0 {
         eval_vec(state, ops);
     }
 }
@@ -45,18 +41,10 @@ fn eval(state: &mut State, op: &Op) {
         Op::While { ref ops } => {
             eval_while(state, ops);
         }
-        _ => {
-            let val = state.data.entry(state.curr_ptr).or_insert(0);
-            let wrapped_val = Wrapping(*val);
-            let wrapped_one = Wrapping(1);
-            match *op {
-                Op::IncVal => *val = (wrapped_val + wrapped_one).0,
-                Op::DecVal => *val = (wrapped_val - wrapped_one).0,
-                Op::Print => state.output.push(char::from(*val)),
-                Op::Read => *val = unsafe { read_val() },
-                _ => panic!("impossible!"),
-            }
-        }
+        Op::IncVal => state.data[state.curr_ptr] += 1,
+        Op::DecVal => state.data[state.curr_ptr] -= 1,
+        Op::Print => state.output.push(char::from(state.data[state.curr_ptr])),
+        Op::Read => state.data[state.curr_ptr] = unsafe { read_val() },
     }
 }
 
@@ -95,7 +83,7 @@ pub fn run_code(code: &str) -> String {
 
     let mut state = State {
         curr_ptr: 0,
-        data: HashMap::new(),
+        data: [0; 4092],
         output: String::new(),
     };
     let (ast, _) = get_ast(code);
