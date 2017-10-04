@@ -101,16 +101,13 @@
         },
     };
 
-    var result = ""
 
     function eval_code (){
-        result = ""
-
         let str = document.getElementById("textarea-code").value
 
-        let f = Module.cwrap('js_run_code', 'null', ['string'])
+        let f = Module.cwrap('js_run_code', 'string', ['string'])
 
-        f(str)
+        let result = f(str)
 
         document.getElementById("results").innerText = result;
     }

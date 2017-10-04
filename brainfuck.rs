@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::num::Wrapping;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::os::raw::c_char;
 
 #[derive(Debug)]
@@ -18,49 +19,45 @@ enum Op {
 struct State {
     curr_ptr: i32,
     data: HashMap<i32, u8>,
+    output: String,
 }
 
 extern "C" {
-    pub fn print_val(_: u8);
     pub fn read_val() -> u8;
 }
 
-fn eval_while(s: State, ops: &[Op]) -> State {
-    let mut state = s;
+fn eval_while(state: &mut State, ops: &[Op]) {
     while *(state.data.entry(state.curr_ptr).or_insert(0)) != 0 {
-        state = eval_vec(state, ops);
+        eval_vec(state, ops);
     }
-    state
 }
 
-fn eval_vec(s: State, ops: &[Op]) -> State {
-    let mut state = s;
+fn eval_vec(state: &mut State, ops: &[Op]) {
     for op in ops.iter() {
-        state = eval(state, op);
+        eval(state, op);
     }
-    state
 }
 
-fn eval(mut s: State, op: &Op) -> State {
-    {
-        let state = s.clone();
-        let val = s.data.entry(s.curr_ptr).or_insert(0);
-        let wrapped_val = Wrapping(*val);
-        let wrapped_one = Wrapping(1);
-
-        match *op {
-            Op::IncPointer => s.curr_ptr += 1,
-            Op::DecPointer => s.curr_ptr -= 1,
-            Op::IncVal => *val = (wrapped_val + wrapped_one).0,
-            Op::DecVal => *val = (wrapped_val - wrapped_one).0,
-            Op::Print => unsafe { print_val(*val) },
-            Op::Read => *val = unsafe { read_val() },
-            Op::While { ref ops } => {
-                return eval_while(state, ops);
+fn eval(state: &mut State, op: &Op) {
+    match *op {
+        Op::IncPointer => state.curr_ptr += 1,
+        Op::DecPointer => state.curr_ptr -= 1,
+        Op::While { ref ops } => {
+            eval_while(state, ops);
+        }
+        _ => {
+            let val = state.data.entry(state.curr_ptr).or_insert(0);
+            let wrapped_val = Wrapping(*val);
+            let wrapped_one = Wrapping(1);
+            match *op {
+                Op::IncVal => *val = (wrapped_val + wrapped_one).0,
+                Op::DecVal => *val = (wrapped_val - wrapped_one).0,
+                Op::Print => state.output.push(char::from(*val)),
+                Op::Read => *val = unsafe { read_val() },
+                _ => panic!("impossible!"),
             }
         }
     }
-    s
 }
 
 fn get_ast(code: &str) -> (Vec<Op>, usize) {
@@ -94,27 +91,28 @@ fn get_ast(code: &str) -> (Vec<Op>, usize) {
     (ops, i)
 }
 
-#[no_mangle]
-pub fn run_code(code: &str) {
+pub fn run_code(code: &str) -> String {
 
-    let init_state = State {
+    let mut state = State {
         curr_ptr: 0,
         data: HashMap::new(),
+        output: String::new(),
     };
-    let (ast, _) = get_ast(&code);
-    eval_vec(init_state, &ast);
+    let (ast, _) = get_ast(code);
+    eval_vec(&mut state, &ast);
+    state.output
 }
 
 fn my_string_safe(i: *mut c_char) -> String {
     unsafe { CStr::from_ptr(i).to_string_lossy().into_owned() }
 }
 
-
 #[no_mangle]
-pub fn js_run_code(code: *mut c_char) {
+pub fn js_run_code(code: *mut c_char) -> *mut c_char {
     let s = my_string_safe(code);
     println!("code: '{}'", s);
-    run_code(&s.as_str());
+    let output = run_code(s.as_str());
+    CString::new(output.as_str()).unwrap().into_raw()
 }
 
 fn main() {}
