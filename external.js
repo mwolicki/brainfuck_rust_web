@@ -1,5 +1,11 @@
 mergeInto(LibraryManager.library, {
     read_val : function (){
-        return prompt("Char", "A").charCodeAt(0)
+        var r = prompt("Char", "A")
+        if (r != null) {
+            return r.charCodeAt(0)
+        }
+        else {
+            return 0
+        }
     }
   });
