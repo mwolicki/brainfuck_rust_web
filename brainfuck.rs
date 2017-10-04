@@ -110,7 +110,6 @@ fn my_string_safe(i: *mut c_char) -> String {
 #[no_mangle]
 pub fn js_run_code(code: *mut c_char) -> *mut c_char {
     let s = my_string_safe(code);
-    println!("code: '{}'", s);
     let output = run_code(s.as_str());
     CString::new(output.as_str()).unwrap().into_raw()
 }
