@@ -74,7 +74,7 @@
     </div>
     <div class="row">
       <div class="col-md-8">
-        <button id="button" type="Button" class="btn btn-success">Run!</button>
+        <button id="button" type="Button" class="btn btn-success" disabled="disabled">Run!</button>
       </div>
     </div>
     <div class="row">
@@ -86,9 +86,14 @@
 
 
 <script type='text/javascript'>
+  let run_button = document.getElementById("button")
+  let textarea_code = document.getElementById("textarea-code")
+  let results = document.getElementById("results")
+
     var Module = {
         postRun: [ function () { 
           eval_code()
+          run_button.disabled = false
         } ],
         noExitRuntime: true,
         print: (function() {
@@ -97,22 +102,23 @@
         };
         })(),
         printErr: function(text) {
-        console.log(text)
+          results.innerText = "error: " + text
+          console.error(text)
         },
     };
 
 
     function eval_code (){
-        let str = document.getElementById("textarea-code").value
+        let str = textarea_code.value
 
         let f = Module.cwrap('js_run_code', 'string', ['string'])
 
         let result = f(str)
 
-        document.getElementById("results").innerText = result;
+        results.innerText = result;
     }
 
-    document.getElementById("button").onclick = eval_code
+    run_button.onclick = eval_code
 
 
     </script>
