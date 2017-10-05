@@ -22,6 +22,7 @@ enum Op {
     Print,
     Read,
     While { ops: Vec<Op> },
+    SetRegisterToZero,
 }
 
 const HEAP_SIZE: usize = 4092;
@@ -60,6 +61,7 @@ fn eval(state: &mut State, op: &Op) {
         Op::DecVal(n) => {
             state.data[state.curr_ptr] = (Wrapping(state.data[state.curr_ptr]) - Wrapping(n)).0
         }
+        Op::SetRegisterToZero => state.data[state.curr_ptr] = 0,
 
         Op::Print => state.output.push(state.data[state.curr_ptr]),
         Op::Read => state.data[state.curr_ptr] = read(&state.output),
@@ -88,7 +90,14 @@ fn compact(ast: &[Op]) -> Vec<Op> {
             }
         }
         match *op {
-            Op::While { ref ops } => compacted_ast.push(Op::While { ops: compact(ops) }),
+            Op::While { ref ops } => {
+                let compacted_ops = compact(ops);
+                if compacted_ops == [Op::IncVal(1)] || compacted_ops == [Op::DecVal(1)] {
+                    compacted_ast.push(Op::SetRegisterToZero)
+                } else {
+                    compacted_ast.push(Op::While { ops: compacted_ops })
+                }
+            }
             Op::Print => compacted_ast.push(Op::Print),
             Op::Read => compacted_ast.push(Op::Read),
             _ => current_op = Some(op.clone()),
