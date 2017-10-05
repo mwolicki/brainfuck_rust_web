@@ -117,12 +117,12 @@
 
     function eval_code (){
         let str = textarea_code.value
-
+        let startTime = new Date();
         let f = Module.cwrap('js_run_code', 'string', ['string'])
 
         let result = f(str)
-
-        results.innerText = result;
+        let elapsed = new Date() - startTime
+        results.innerText = result + "\r\n\r\nElapsed time: " + elapsed + "ms";
     }
 
     run_button.onclick = eval_code
