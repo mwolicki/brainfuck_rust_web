@@ -4,11 +4,12 @@ use std::os::raw::c_char;
 use std::num::Wrapping;
 
 extern "C" {
-    pub fn read_val() -> u8;
+    pub fn read_val(_: *mut c_char) -> u8;
 }
 
-fn read() -> u8 {
-    unsafe { read_val() }
+fn read(current_output: &Vec<u8>) -> u8 {
+    let current_output = String::from_utf8_lossy(&current_output.as_slice()).into_owned();
+    unsafe { read_val(to_c_str(&current_output)) }
 }
 
 enum Op {
@@ -55,7 +56,7 @@ fn eval(state: &mut State, op: &Op) {
             state.data[state.curr_ptr] = (Wrapping(state.data[state.curr_ptr]) - Wrapping(1)).0
         }
         Op::Print => state.output.push(state.data[state.curr_ptr]),
-        Op::Read => state.data[state.curr_ptr] = read(),
+        Op::Read => state.data[state.curr_ptr] = read(&state.output),
     }
 }
 
@@ -106,15 +107,21 @@ fn run_brainfuck(code: &str) -> String {
 }
 
 
-fn my_string_safe(i: *mut c_char) -> String {
+fn from_c_str(i: *mut c_char) -> String {
     unsafe { CStr::from_ptr(i).to_string_lossy().into_owned() }
+}
+
+fn to_c_str(s: &String) -> *mut c_char {
+    CString::new(s.as_str())
+        .expect("Couldn't convert to string.")
+        .into_raw()
 }
 
 #[no_mangle]
 pub fn js_run_code(code: *mut c_char) -> *mut c_char {
-    let s = my_string_safe(code);
+    let s = from_c_str(code);
     let output = run_brainfuck(s.as_str());
-    CString::new(output.as_str()).unwrap().into_raw()
+    to_c_str(&output)
 }
 
 fn main() {}

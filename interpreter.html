@@ -65,7 +65,7 @@
       >++.                    And finally a newline from Cell #6
         </textarea>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-4">
         <blockquote class="blockquote">
           <strong>Result</strong> <br/>
           <div id="results"></div>
@@ -90,6 +90,13 @@
   let textarea_code = document.getElementById("textarea-code")
   let results = document.getElementById("results")
 
+  function forceRedraw(element) {
+    let current_display = element.style.display;
+    element.style.display = 'none';
+    let trick = element.offsetHeight;
+    element.style.display = current_display;
+  };
+
     var Module = {
         postRun: [ function () { 
           eval_code()
@@ -102,7 +109,7 @@
         };
         })(),
         printErr: function(text) {
-          results.innerText = "error: " + text
+          results.innerHTML += "<br/><br/>ERROR: " + text
           console.error(text)
         },
     };
