@@ -29,12 +29,13 @@
 
 <body>
 
-  <div class="content">
+  <div class="container">
     <div class="row">
       <h1>Brainfuck interpreter</h1>
       <p>based on <a href="https://github.com/mwolicki/brainfuck_rust">https://github.com/mwolicki/brainfuck_rust</a>; source
         code <a href="https://github.com/mwolicki/brainfuck_rust_web">https://github.com/mwolicki/brainfuck_rust_web</a>
-      </p><textarea id="textarea-code" rows="10" class="form-control">
+      </p>
+      <textarea id="textarea-code" rows="10" class="form-control">
 [ This program prints "Hello World!" and a newline to the screen, its
 length is 106 active command characters. [It is not the shortest.]
 
@@ -82,10 +83,8 @@ Pointer :   ^
 
     </div>
     <div class="row">
-      <blockquote class="blockquote">
-        <strong>Result</strong> <br/>
-        <pre id="results"></pre>
-      </blockquote>
+      <h4>Result</h4>
+      <pre id="results"></pre>
     </div>
     <div class="row" style="align-content: right">
       <button id="button" type="Button" class="btn btn-success" disabled="disabled">Run!</button>
