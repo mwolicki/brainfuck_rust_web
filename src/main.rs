@@ -1,5 +1,6 @@
 mod brainfuck;
 mod wasm;
+mod leb128;
 
 use brainfuck::*;
 use std::ffi::CStr;
