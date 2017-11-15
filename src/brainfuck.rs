@@ -1,6 +1,6 @@
 
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Op {
     IncPointer(usize),
     DecPointer(usize),

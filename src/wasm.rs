@@ -5,6 +5,10 @@ use std::fs::File;
 use std::io::prelude::*;
 use brainfuck::*;
 use std::fmt;
+
+const EXTERNAL_CALL_PRINT:u8 = 0;
+const EXTERNAL_CALL_READ:u8 = 1;
+
 const GET_LOCAL:u8 = 0x20;
 const SET_LOCAL:u8 = 0x21;
 const I32_ADD:u8 = 0x6a;
@@ -12,10 +16,15 @@ const I32_SUB:u8 = 0x6b;
 const I32_CONST:u8 = 0x41;
 const I32_STORE8:u8 = 0x3a;
 const I32_LOAD8_U:u8 = 0x2d;
+const END:u8 = 0x0b;
+const CALL:u8 = 0x10;
+const WASM_MAGIC:u8 = 0x6d736100;
+const WASM_VERSION:u8 = 0x1;
 
 type Position = u8;
 
 enum Wast {
+    Call(u8), //should be LEB128
     I32Const(u8), //should be LEB128
     I32Store8,
     I32Load8u,
@@ -54,7 +63,10 @@ impl Wast {
                 vec.write_u8(GET_LOCAL).unwrap();
                 vec.write_u8(n).unwrap(); // alignment
             },
-            
+            Wast::Call(n) => {
+                vec.write_u8(CALL).unwrap();
+                vec.write_u8(n).unwrap(); // alignment
+            },
         }
     }
 }
@@ -69,6 +81,7 @@ impl fmt::Display for Wast {
             Wast::GetLocal (i) => write!(f, "get_local {}", i),
             Wast::I32Add => write!(f, "i32.add"),
             Wast::I32Sub => write!(f, "i32.sub"),
+            Wast::Call(i) => write!(f, "call {}", i),
         }
     }
 }
@@ -107,6 +120,16 @@ fn to_wasmt (ops: &Op, res : &mut Vec<Wast>) {
         Op::SetRegisterToZero => {
             res.push(Wast::GetLocal(0));
             res.push(Wast::I32Const(0));
+            res.push(Wast::I32Store8);
+        },
+        Op::Print => {
+            res.push(Wast::GetLocal(0));            
+            res.push(Wast::I32Load8u);
+            res.push(Wast::Call(EXTERNAL_CALL_PRINT));
+        },
+        Op::Read => {
+            res.push(Wast::GetLocal(0));
+            res.push(Wast::Call(EXTERNAL_CALL_READ));
             res.push(Wast::I32Store8);
         },
         _ => ()

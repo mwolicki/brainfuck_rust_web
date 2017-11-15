@@ -1,10 +1,12 @@
 mod brainfuck;
+mod wasm;
 
 use brainfuck::*;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::os::raw::c_char;
 use std::num::Wrapping;
+extern crate byteorder;
 
 
 
@@ -62,9 +64,6 @@ fn eval(state: &mut State, op: &Op) {
     }
 }
 
-
-
-
 fn run_brainfuck(code: &str) -> String {
     let mut state = State {
         curr_ptr: 0,
@@ -96,4 +95,10 @@ pub fn js_run_code(code: *mut c_char) -> *mut c_char {
     to_c_str(&output)
 }
 
-fn main() {}
+fn main() {
+    let code = "++[-]++++++++++-";
+    let chars: Vec<char> = code.chars().collect();
+    let (ast, _) = get_ast(&chars);
+    let ast = compact(&ast);
+    wasm::to_wasm(&ast);
+}
