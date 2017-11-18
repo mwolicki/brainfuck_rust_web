@@ -18,8 +18,10 @@ const I32_STORE8:u8 = 0x3a;
 const I32_LOAD8_U:u8 = 0x2d;
 const END:u8 = 0x0b;
 const CALL:u8 = 0x10;
-const WASM_MAGIC:u8 = 0x6d736100;
-const WASM_VERSION:u8 = 0x1;
+
+const WASM_MAGIC:u32 = 0x6d736100;
+const WASM_VERSION:u32 = 0x1;
+const TYPE_I32:u8 = 0x7f;
 
 type Position = u8;
 
@@ -34,10 +36,7 @@ enum Wast {
     I32Sub,
 }
 
-
 impl Wast {
-
-
     fn to_binary (&self, vec: &mut Vec<u8>) {
         match *self {
             Wast::I32Store8 => {
@@ -68,6 +67,35 @@ impl Wast {
                 vec.write_u8(n).unwrap(); // alignment
             },
         }
+    }
+}
+
+
+type Name = String;
+type NumberOfI32 = u8;
+struct TypeDef {
+    name: Name,
+    params : NumberOfI32,
+    result : NumberOfI32
+}
+
+struct Module {
+    imports: Vec<TypeDef>,
+    functions: Vec<(TypeDef, NumberOfI32, Vec<Wast>)>
+}
+
+
+
+impl Module {
+    fn to_binary (&self, vec: &mut Vec<u8>) {
+        vec.write_u32::<LittleEndian>(WASM_MAGIC).unwrap();
+        vec.write_u32::<LittleEndian>(WASM_VERSION).unwrap();
+
+        //Type
+        vec.write_u8(1).unwrap();
+
+        //for i 
+
     }
 }
 
@@ -138,26 +166,25 @@ fn to_wasmt (ops: &Op, res : &mut Vec<Wast>) {
 
 
 pub fn to_wasm (ops: &[Op]) {
-        let mut bin = vec![];
+    let mut wast = vec![];
 
     for op in ops {
-        let mut wast = vec![];
         to_wasmt(op, &mut wast);
-        for w in &wast {
-            println!("  {}", w);
-        }
-        
-        
-        for w in  wast{
-            
-            w.to_binary(&mut bin);
-            
-        }
     }
-    let mut file = File::create("foo.txt").unwrap();
-    file.write_all(&bin).unwrap();;
+
+    let module = Module{
+        imports : vec![],
+        functions : vec![(TypeDef{
+            name : "exec".to_owned(),
+            result : 0,
+            params : 0
+        }, 1, wast)],
+    };
+
+    // let mut file = File::create("foo.txt").unwrap();
+    // file.write_all(&bin).unwrap();;
 
 
-        println!("{:?}", bin);
+    //     println!("{:?}", bin);
     
 }
