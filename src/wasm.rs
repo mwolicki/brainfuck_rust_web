@@ -202,6 +202,28 @@ impl Module {
             }
         }
 
+        fn exports_section (functions: &Functions, vec: &mut Vec<u8>){
+            let elements = functions.len() as u8;
+            if elements > 0 {
+                let mut fns_vec = vec![];
+                fns_vec.write_u8(elements).unwrap();
+            
+                let mut i = 0;
+                
+                for &(ref name, _, _, _) in functions {
+                    append_wasm_string(&name, &mut fns_vec);
+                    fns_vec.write_u8(0).unwrap();//kind
+                    fns_vec.write_u8(i).unwrap();//signature
+                    i+=1;
+                }
+
+                const EXPORTS_SECTION : u8 = 7;
+                vec.write_u8(EXPORTS_SECTION).unwrap();
+                vec.write_u8(fns_vec.len() as u8).unwrap();
+                vec.append(&mut fns_vec);
+            }
+        }
+
         fn memory_section (vec: &mut Vec<u8>){
             
 
@@ -225,6 +247,7 @@ impl Module {
         import_section(&self.imports, vec);
         functions_section(&self.functions, self.imports.len() as u8, vec);
         memory_section(vec);
+        exports_section(&self.functions, vec);
     }
 }
 
