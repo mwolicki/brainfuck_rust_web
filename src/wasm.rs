@@ -24,12 +24,12 @@ const BLOCK:u8 = 0x02;
 const LOOP:u8 = 0x03;
 const BR:u8 = 0x0c;
 const BRIF:u8 = 0x0d;
+const VOID:u8 = 0x40;
 const END:u8 = 0x0b;
 const CALL:u8 = 0x10;
 
 const WASM_MAGIC:u32 = 0x6d736100;
 const WASM_VERSION:u32 = 0x1;
-const TYPE_I32:u8 = 0x7f;
 
 type Position = u8;
 
@@ -65,8 +65,14 @@ impl Wast {
             Wast::I32Add => vec.write_u8(I32_ADD).unwrap(),
             Wast::I32Sub => vec.write_u8(I32_SUB).unwrap(),
             Wast::I32Eqz => vec.write_u8(I32_EQZ).unwrap(),
-            Wast::Block => vec.write_u8(BLOCK).unwrap(),
-            Wast::Loop => vec.write_u8(LOOP).unwrap(),
+            Wast::Block => {
+                vec.write_u8(BLOCK).unwrap();
+                vec.write_u8(VOID).unwrap();
+            },
+            Wast::Loop => {
+                vec.write_u8(LOOP).unwrap();
+                vec.write_u8(VOID).unwrap();
+            },
             Wast::End => vec.write_u8(END).unwrap(),
             Wast::I32Const(n) => {
                 vec.write_u8(I32_CONST).unwrap();
@@ -147,15 +153,19 @@ impl Module {
                 }
                 const TYPES_SECTION : u8 = 1;
                 vec.write_u8(TYPES_SECTION).unwrap();
-                vec.write_u8(td_vec.len() as u8).unwrap();
+                write_leb128(td_vec.len() as u32, vec);
                 vec.append(&mut td_vec);
             }
         }
 
+        fn write_leb128(i:u32, vec: &mut Vec<u8>) {
+            let mut n = leb128::encode_unsigned(i);
+            vec.append(&mut n);
+        }
+
         fn append_wasm_string(s:&String, vec: &mut Vec<u8>) {
             let mut bytes = s.clone().into_bytes();
-            let mut str_size = leb128::encode_unsigned(bytes.len() as u32);
-            vec.append(&mut str_size);
+            write_leb128(bytes.len() as u32,  vec);
             vec.append(&mut bytes);
         }
 
@@ -177,7 +187,7 @@ impl Module {
 
                 const IMPORTS_SECTION : u8 = 2;
                 vec.write_u8(IMPORTS_SECTION).unwrap();
-                vec.write_u8(ims_vec.len() as u8).unwrap();
+                write_leb128(ims_vec.len() as u32, vec);
                 vec.append(&mut ims_vec);
             }
         }
@@ -197,18 +207,18 @@ impl Module {
 
                 const FUNCTIONS_SECION : u8 = 3;
                 vec.write_u8(FUNCTIONS_SECION).unwrap();
-                vec.write_u8(fns_vec.len() as u8).unwrap();
+                write_leb128(fns_vec.len() as u32, vec);
                 vec.append(&mut fns_vec);
             }
         }
 
-        fn exports_section (functions: &Functions, vec: &mut Vec<u8>){
+        fn exports_section (functions: &Functions, no_imports:u8, vec: &mut Vec<u8>){
             let elements = functions.len() as u8;
             if elements > 0 {
                 let mut fns_vec = vec![];
                 fns_vec.write_u8(elements).unwrap();
             
-                let mut i = 0;
+                let mut i = no_imports;
                 
                 for &(ref name, _, _, _) in functions {
                     append_wasm_string(&name, &mut fns_vec);
@@ -219,7 +229,7 @@ impl Module {
 
                 const EXPORTS_SECTION : u8 = 7;
                 vec.write_u8(EXPORTS_SECTION).unwrap();
-                vec.write_u8(fns_vec.len() as u8).unwrap();
+                write_leb128(fns_vec.len() as u32, vec);
                 vec.append(&mut fns_vec);
             }
         }
@@ -230,13 +240,41 @@ impl Module {
             fns_vec.write_u8(1).unwrap(); //1 section
             fns_vec.write_u8(0).unwrap(); //flags
 
-            let mut memory_size = leb128::encode_unsigned(4092);
-            fns_vec.append(&mut memory_size);
+            write_leb128(4092, &mut fns_vec);
 
             const MEMORY_SECTION : u8 = 5;
             vec.write_u8(MEMORY_SECTION).unwrap();
-            vec.write_u8(fns_vec.len() as u8).unwrap();
+            write_leb128(fns_vec.len() as u32, vec);
             vec.append(&mut fns_vec);
+        }
+
+        fn code_section (functions: &Functions, vec: &mut Vec<u8>){
+            let elements = functions.len() as u8;
+            if elements > 0 {
+                let mut fns_vec = vec![];
+                fns_vec.write_u8(elements).unwrap();
+            
+                for &(_, _, ref local_vars, ref wasmt) in functions {
+                    let mut code = vec![];
+
+                    code.write_u8(*local_vars).unwrap();
+                    for _ in 0..*local_vars {
+                        code.write_u8(1).unwrap(); //type
+                        code.write_u8(I32).unwrap();
+                    }
+                    for w in wasmt {
+                        w.to_binary(&mut code);
+                    }
+                    code.write_u8(END).unwrap();
+                    write_leb128(code.len() as u32, &mut fns_vec);
+                    fns_vec.append(&mut code);
+                    
+                }
+                const CODE_SECTION : u8 = 10;
+                vec.write_u8(CODE_SECTION).unwrap();
+                write_leb128(fns_vec.len() as u32, vec);
+                vec.append(&mut fns_vec);
+            }
         }
 
         vec.write_u32::<LittleEndian>(WASM_MAGIC).unwrap();
@@ -246,7 +284,8 @@ impl Module {
         import_section(&self.imports, vec);
         functions_section(&self.functions, self.imports.len() as u8, vec);
         memory_section(vec);
-        exports_section(&self.functions, vec);
+        exports_section(&self.functions, self.imports.len() as u8, vec);
+        code_section(&self.functions, vec);
     }
 }
 
@@ -339,21 +378,16 @@ fn to_wasmt (ops: &Op, res : &mut Vec<Wast>) {
 }
 
 
-pub fn to_wasm (ops: &[Op]) {
+pub fn to_wasm (ops: &[Op]) -> Vec<u8> {
     let mut wast = vec![];
     
     for op in ops {
         to_wasmt(op, &mut wast);
     }
 
-    for w in &wast {
-        println!("{}", w);
-    }
-
     let module = Module{
          imports : vec![("io".to_owned(), "print".to_owned(), TypeDef{ result : false, params : 1 }),
                         ("io".to_owned(), "read".to_owned(), TypeDef{ result : true, params : 0 })],
-        //imports : vec![],
         functions : vec![("exec".to_owned(), TypeDef{
             result : false,
             params : 0
@@ -362,11 +396,6 @@ pub fn to_wasm (ops: &[Op]) {
 
     let mut module_bin = vec![];
     module.to_binary(&mut module_bin);
-    
-    let mut file = File::create("module.bin").unwrap();
-    file.write_all(&module_bin).unwrap();;
-
-
-    //     println!("{:?}", bin);
+    module_bin
     
 }

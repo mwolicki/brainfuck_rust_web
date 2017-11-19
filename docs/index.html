@@ -123,17 +123,52 @@ Pointer :   ^
     },
   };
 
+  function run_with_ptr(vec_ptr, cb) {
+      const ptr = Module.HEAPU32[vec_ptr / 4];
+      const len = Module.HEAPU32[vec_ptr / 4 + 1];
+      cb(Module.HEAPU8.subarray(ptr, ptr + len));
+      //Module._drop_bytes(ptr);
+  }
 
   function eval_code() {
     let str = textarea_code.value
     let startTime = new Date();
     let f = Module.cwrap('js_run_code', 'string', ['string'])
-
-    let result = f(str)
+    let compile_to_wasm = Module.cwrap('compile_to_wasm', 'number', ['string'])
+    run_with_ptr(compile_to_wasm(str), arr => {
+      WebAssembly.compile(arr).then( x=> 
+        WebAssembly.instantiate(x, {
+          io:{
+            read(){
+              var r = prompt("Char", "A")
+              if (r != null) {
+                  return r.charCodeAt(0)
+              }
+              else {
+                  return 0
+              }
+            },
+            print(v){
+              results.innerText += String.fromCharCode(v);
+            },
+          }
+        })
+      )
+      .then(x=>
+      {
+          results.innerText = "";
+          let compilationTime = new Date()
+          x.exports.exec()
+          results.innerText += "\r\n\r\Compilation time: " + (compilationTime - startTime) + "ms";
+          results.innerText += "\r\nElapsed time: " + (new Date() - compilationTime) + "ms";
+      });
+    
+    })
+    
     let elapsed = new Date() - startTime
-    results.innerText = result + "\r\n\r\nElapsed time: " + elapsed + "ms";
+    
   }
 
   run_button.onclick = eval_code
 </script>
-<script type="text/javascript" src="brainfuck_webassembly-69ac84379fe547cc.js"></script>
+<script type="text/javascript" src="brainfuck_webassembly-6b6ce124b4973121.js"></script>

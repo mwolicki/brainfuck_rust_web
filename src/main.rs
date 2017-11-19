@@ -5,11 +5,42 @@ mod leb128;
 use brainfuck::*;
 use std::ffi::CStr;
 use std::ffi::CString;
-use std::os::raw::c_char;
+use std::os::raw::{c_char};
 use std::num::Wrapping;
 extern crate byteorder;
 
 
+use std::mem;
+
+
+//copred from https://gist.github.com/thomas-jeepe/ff938fe2eff616f7bbe4bd3dca91a550
+#[repr(C)]
+#[derive(Debug)]
+pub struct JsBytes {
+    ptr: u32,
+    len: u32,
+    cap: u32,
+}
+
+impl JsBytes {
+    pub fn new(mut bytes: Vec<u8>) -> *mut JsBytes {
+        let ptr = bytes.as_mut_ptr() as u32;
+        let len = bytes.len() as u32;
+        let cap = bytes.capacity() as u32;
+        mem::forget(bytes);
+        let boxed = Box::new(JsBytes { ptr, len, cap });
+        Box::into_raw(boxed)
+    }
+}
+
+
+#[no_mangle]
+pub fn drop_bytes(ptr: *mut JsBytes) {
+    unsafe {
+        let boxed: Box<JsBytes> = Box::from_raw(ptr);
+        Vec::from_raw_parts(boxed.ptr as *mut u8, boxed.len as usize, boxed.cap as usize);
+    }
+}
 
 extern "C" {
     pub fn read_val(_: *mut c_char) -> u8;
@@ -96,12 +127,17 @@ pub fn js_run_code(code: *mut c_char) -> *mut c_char {
     to_c_str(&output)
 }
 
-fn main() {
-    let code = "+++>+++[-<+>]+++[-<++++>]";
-//    let code = ">+++[->++[->+++<]<+>]";
-    
+
+#[no_mangle]
+pub fn compile_to_wasm(code: *mut c_char) -> *mut JsBytes {
+    let code = from_c_str(code);
+    println!("{}", code);
     let chars: Vec<char> = code.chars().collect();
     let (ast, _) = get_ast(&chars);
     let ast = compact(&ast);
-    wasm::to_wasm(&ast);
+    let x = wasm::to_wasm(&ast);
+    JsBytes::new(x)
+}
+
+fn main() {
 }
