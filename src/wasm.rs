@@ -108,7 +108,7 @@ impl TypeDef {
     fn to_binary (&self, vec: &mut Vec<u8>) {
         vec.write_u8(FUNC).unwrap();
         vec.write_u8(self.params).unwrap();
-        for i in 0..self.params {
+        for _ in 0..self.params {
             vec.write_u8(I32).unwrap();        
         }
 
@@ -225,8 +225,7 @@ impl Module {
         }
 
         fn memory_section (vec: &mut Vec<u8>){
-            
-
+        
             let mut fns_vec = vec![];
             fns_vec.write_u8(1).unwrap(); //1 section
             fns_vec.write_u8(0).unwrap(); //flags
