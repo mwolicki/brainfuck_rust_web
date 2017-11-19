@@ -136,7 +136,7 @@ Pointer :   ^
     let f = Module.cwrap('js_run_code', 'string', ['string'])
     let compile_to_wasm = Module.cwrap('compile_to_wasm', 'number', ['string'])
     run_with_ptr(compile_to_wasm(str), arr => {
-      WebAssembly.compile(arr).then( x=> 
+      WebAssembly.compile(Uint8Array.from(arr)).then( x=> 
         WebAssembly.instantiate(x, {
           io:{
             read(){
