@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use brainfuck::*;
 use std::fmt;
+use leb128;
 
 const EXTERNAL_CALL_PRINT:u8 = 0;
 const EXTERNAL_CALL_READ:u8 = 1;
@@ -126,7 +127,7 @@ type Functions = Vec<(Name, TypeDef, NumberOfI32, Vec<Wast>)>;
 
 struct Module {
     imports: Imports,
-    functions: Vec<(Name, TypeDef, NumberOfI32, Vec<Wast>)>
+    functions: Functions
 }
 
 impl Module {
@@ -153,13 +154,14 @@ impl Module {
 
         fn append_wasm_string(s:&String, vec: &mut Vec<u8>) {
             let mut bytes = s.clone().into_bytes();
-            vec.write_u8(bytes.len() as u8);
+            let mut str_size = leb128::encode_unsigned(bytes.len() as u32);
+            vec.append(&mut str_size);
             vec.append(&mut bytes);
         }
 
         fn import_section (imports: &Imports, vec: &mut Vec<u8>){
             let elements = imports.len() as u8;
-            if imports.len() > 0 {
+            if elements > 0 {
                 let mut ims_vec = vec![];
                 ims_vec.write_u8(elements).unwrap();
             
@@ -180,11 +182,49 @@ impl Module {
             }
         }
 
+        fn functions_section (functions: &Functions, imports_no :u8, vec: &mut Vec<u8>){
+            let elements = functions.len() as u8;
+            if elements > 0 {
+                let mut fns_vec = vec![];
+                fns_vec.write_u8(elements).unwrap();
+            
+                let mut i = imports_no;
+                
+                for _ in functions {
+                    fns_vec.write_u8(i).unwrap();
+                    i+=1;
+                }
+
+                const FUNCTIONS_SECION : u8 = 3;
+                vec.write_u8(FUNCTIONS_SECION).unwrap();
+                vec.write_u8(fns_vec.len() as u8).unwrap();
+                vec.append(&mut fns_vec);
+            }
+        }
+
+        fn memory_section (vec: &mut Vec<u8>){
+            
+
+            let mut fns_vec = vec![];
+            fns_vec.write_u8(1).unwrap(); //1 section
+            fns_vec.write_u8(0).unwrap(); //flags
+
+            let mut memory_size = leb128::encode_unsigned(4092);
+            fns_vec.append(&mut memory_size);
+
+            const MEMORY_SECTION : u8 = 5;
+            vec.write_u8(MEMORY_SECTION).unwrap();
+            vec.write_u8(fns_vec.len() as u8).unwrap();
+            vec.append(&mut fns_vec);
+        }
+
         vec.write_u32::<LittleEndian>(WASM_MAGIC).unwrap();
         vec.write_u32::<LittleEndian>(WASM_VERSION).unwrap();
 
         types_section(&self, vec);
         import_section(&self.imports, vec);
+        functions_section(&self.functions, self.imports.len() as u8, vec);
+        memory_section(vec);
     }
 }
 
