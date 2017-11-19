@@ -9,6 +9,8 @@ use std::fmt;
 const EXTERNAL_CALL_PRINT:u8 = 0;
 const EXTERNAL_CALL_READ:u8 = 1;
 
+const FUNC:u8 = 0x60;
+const I32:u8 = 0x7f;
 const GET_LOCAL:u8 = 0x20;
 const SET_LOCAL:u8 = 0x21;
 const I32_ADD:u8 = 0x6a;
@@ -97,27 +99,64 @@ impl Wast {
 type Name = String;
 type NumberOfI32 = u8;
 struct TypeDef {
-    name: Name,
     params : NumberOfI32,
-    result : NumberOfI32
+    result : bool
+}
+
+
+impl TypeDef {
+    fn to_binary (&self, vec: &mut Vec<u8>) {
+        vec.write_u8(FUNC).unwrap();
+        vec.write_u8(self.params).unwrap();
+        for i in 0..self.params {
+            vec.write_u8(I32).unwrap();        
+        }
+
+        if self.result {
+            vec.write_u8(1).unwrap();        
+            vec.write_u8(I32).unwrap();                    
+        }
+        else{
+            vec.write_u8(0).unwrap();                    
+        }
+    }
 }
 
 struct Module {
-    imports: Vec<TypeDef>,
-    functions: Vec<(TypeDef, NumberOfI32, Vec<Wast>)>
+    imports: Vec<(Name, TypeDef)>,
+    functions: Vec<(Name, TypeDef, NumberOfI32, Vec<Wast>)>
 }
-
-
 
 impl Module {
     fn to_binary (&self, vec: &mut Vec<u8>) {
+        fn types_section (module: &Module, vec: &mut Vec<u8>){
+            let elements = (module.functions.len() + module.imports.len()) as u8;
+            if elements > 0 {
+
+                let mut td_vec = vec![];
+                td_vec.write_u8(elements).unwrap();
+                for &(_, ref td) in &module.imports {
+                    td.to_binary(&mut td_vec);
+                }
+
+                for &(_, ref td, _, _) in &module.functions {
+                    td.to_binary(&mut td_vec);
+                }
+                const types_section : u8 = 1;
+                vec.write_u8(types_section).unwrap();
+                vec.write_u8(td_vec.len() as u8).unwrap();
+                vec.append(&mut td_vec);
+            }
+        }
+
+        fn import_section (module: &Module, vec: &mut Vec<u8>){
+            
+        }
+
         vec.write_u32::<LittleEndian>(WASM_MAGIC).unwrap();
         vec.write_u32::<LittleEndian>(WASM_VERSION).unwrap();
 
-        //Type
-        vec.write_u8(1).unwrap();
-
-        //for i 
+        types_section(&self, vec);
 
     }
 }
@@ -223,16 +262,20 @@ pub fn to_wasm (ops: &[Op]) {
     }
 
     let module = Module{
-        imports : vec![],
-        functions : vec![(TypeDef{
-            name : "exec".to_owned(),
-            result : 0,
+         imports : vec![("print".to_owned(), TypeDef{ result : false, params : 1 }),
+                        ("read".to_owned(), TypeDef{ result : true, params : 0 })],
+        //imports : vec![],
+        functions : vec![("exec".to_owned(), TypeDef{
+            result : false,
             params : 0
         }, 1, wast)],
     };
+
+    let mut module_bin = vec![];
+    module.to_binary(&mut module_bin);
     
-    // let mut file = File::create("foo.txt").unwrap();
-    // file.write_all(&bin).unwrap();;
+    let mut file = File::create("module.bin").unwrap();
+    file.write_all(&module_bin).unwrap();;
 
 
     //     println!("{:?}", bin);
