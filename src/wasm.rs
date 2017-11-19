@@ -127,7 +127,7 @@ impl fmt::Display for Wast {
     }
 }
 
-fn to_wasmt (ops: &Op, res : &mut Vec<Wast>, block_no : &mut u8) {
+fn to_wasmt (ops: &Op, res : &mut Vec<Wast>) {
     match *ops {
         Op::IncPointer(n) => {
             res.push(Wast::GetLocal(0));
@@ -182,9 +182,8 @@ fn to_wasmt (ops: &Op, res : &mut Vec<Wast>, block_no : &mut u8) {
             res.push(Wast::I32Eqz);
             res.push(Wast::BrIf(1));
 
-            let mut inner_block_number = 0;
             for o in ops {
-                to_wasmt(o, res, &mut inner_block_number);
+                to_wasmt(o, res);
             }
 
             res.push(Wast::Br(0));
@@ -199,10 +198,8 @@ fn to_wasmt (ops: &Op, res : &mut Vec<Wast>, block_no : &mut u8) {
 pub fn to_wasm (ops: &[Op]) {
     let mut wast = vec![];
     
-    let mut block_number = 0;
-    
     for op in ops {
-        to_wasmt(op, &mut wast, &mut block_number);
+        to_wasmt(op, &mut wast);
     }
 
     for w in &wast {
