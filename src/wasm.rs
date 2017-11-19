@@ -16,6 +16,11 @@ const I32_SUB:u8 = 0x6b;
 const I32_CONST:u8 = 0x41;
 const I32_STORE8:u8 = 0x3a;
 const I32_LOAD8_U:u8 = 0x2d;
+const I32_EQZ:u8 = 0x45;
+const BLOCK:u8 = 0x02;
+const LOOP:u8 = 0x03;
+const BR:u8 = 0x0c;
+const BRIF:u8 = 0x0d;
 const END:u8 = 0x0b;
 const CALL:u8 = 0x10;
 
@@ -56,6 +61,9 @@ impl Wast {
             },
             Wast::I32Add => vec.write_u8(I32_ADD).unwrap(),
             Wast::I32Sub => vec.write_u8(I32_SUB).unwrap(),
+            Wast::Block => vec.write_u8(BLOCK).unwrap(),
+            Wast::Loop => vec.write_u8(LOOP).unwrap(),
+            Wast::End => vec.write_u8(END).unwrap(),
             Wast::I32Const(n) => {
                 vec.write_u8(I32_CONST).unwrap();
                 vec.write_u8(n).unwrap(); // alignment
@@ -72,7 +80,6 @@ impl Wast {
                 vec.write_u8(CALL).unwrap();
                 vec.write_u8(n).unwrap(); // alignment
             },
-            _ => {}
         }
     }
 }
