@@ -35,19 +35,17 @@ impl JsBytes {
 
 
 #[no_mangle]
-pub fn drop_bytes(ptr: *mut JsBytes) {
-    unsafe {
-        let boxed: Box<JsBytes> = Box::from_raw(ptr);
-        Vec::from_raw_parts(boxed.ptr as *mut u8, boxed.len as usize, boxed.cap as usize);
-    }
+pub unsafe fn drop_bytes(ptr: *mut JsBytes) {
+    let boxed: Box<JsBytes> = Box::from_raw(ptr);
+    Vec::from_raw_parts(boxed.ptr as *mut u8, boxed.len as usize, boxed.cap as usize);
 }
 
 extern "C" {
     pub fn read_val(_: *mut c_char) -> u8;
 }
 
-fn read(current_output: &Vec<u8>) -> u8 {
-    let current_output = String::from_utf8_lossy(&current_output.as_slice()).into_owned();
+fn read(current_output: &[u8]) -> u8 {
+    let current_output = String::from_utf8_lossy(current_output).into_owned();
     unsafe { read_val(to_c_str(&current_output)) }
 }
 

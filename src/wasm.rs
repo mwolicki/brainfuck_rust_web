@@ -1,8 +1,6 @@
 
 use byteorder::{WriteBytesExt, LittleEndian};
 
-use std::fs::File;
-use std::io::prelude::*;
 use brainfuck::*;
 use std::fmt;
 use leb128;
@@ -28,7 +26,7 @@ const VOID:u8 = 0x40;
 const END:u8 = 0x0b;
 const CALL:u8 = 0x10;
 
-const WASM_MAGIC:u32 = 0x6d736100;
+const WASM_MAGIC:u32 = 0x6d73_6100;
 const WASM_VERSION:u32 = 0x1;
 
 type Position = u8;
@@ -178,8 +176,8 @@ impl Module {
                 let mut i = 0;
                 
                 for &(ref module_str, ref field_str, _) in imports {
-                    append_wasm_string(&module_str, &mut ims_vec);
-                    append_wasm_string(&field_str, &mut ims_vec);
+                    append_wasm_string(module_str, &mut ims_vec);
+                    append_wasm_string(field_str, &mut ims_vec);
                     ims_vec.write_u8(0).unwrap();//kind
                     ims_vec.write_u8(i).unwrap();//signature
                     i+=1;
@@ -221,7 +219,7 @@ impl Module {
                 let mut i = no_imports;
                 
                 for &(ref name, _, _, _) in functions {
-                    append_wasm_string(&name, &mut fns_vec);
+                    append_wasm_string(name, &mut fns_vec);
                     fns_vec.write_u8(0).unwrap();//kind
                     fns_vec.write_u8(i).unwrap();//signature
                     i+=1;
@@ -280,7 +278,7 @@ impl Module {
         vec.write_u32::<LittleEndian>(WASM_MAGIC).unwrap();
         vec.write_u32::<LittleEndian>(WASM_VERSION).unwrap();
 
-        types_section(&self, vec);
+        types_section(self, vec);
         import_section(&self.imports, vec);
         functions_section(&self.functions, self.imports.len() as u8, vec);
         memory_section(vec);
