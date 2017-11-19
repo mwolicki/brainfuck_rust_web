@@ -61,24 +61,33 @@ impl Wast {
             },
             Wast::I32Add => vec.write_u8(I32_ADD).unwrap(),
             Wast::I32Sub => vec.write_u8(I32_SUB).unwrap(),
+            Wast::I32Eqz => vec.write_u8(I32_EQZ).unwrap(),
             Wast::Block => vec.write_u8(BLOCK).unwrap(),
             Wast::Loop => vec.write_u8(LOOP).unwrap(),
             Wast::End => vec.write_u8(END).unwrap(),
             Wast::I32Const(n) => {
                 vec.write_u8(I32_CONST).unwrap();
-                vec.write_u8(n).unwrap(); // alignment
+                vec.write_u8(n).unwrap();
             },
             Wast::SetLocal(n) => {
                 vec.write_u8(SET_LOCAL).unwrap();
-                vec.write_u8(n).unwrap(); // alignment
+                vec.write_u8(n).unwrap();
             },
             Wast::GetLocal(n) => {
                 vec.write_u8(GET_LOCAL).unwrap();
-                vec.write_u8(n).unwrap(); // alignment
+                vec.write_u8(n).unwrap();
             },
             Wast::Call(n) => {
                 vec.write_u8(CALL).unwrap();
-                vec.write_u8(n).unwrap(); // alignment
+                vec.write_u8(n).unwrap();
+            },
+            Wast::Br(n) => {
+                vec.write_u8(BR).unwrap();
+                vec.write_u8(n).unwrap();
+            },
+            Wast::BrIf(n) => {
+                vec.write_u8(BRIF).unwrap();
+                vec.write_u8(n).unwrap();
             },
         }
     }
