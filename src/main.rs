@@ -97,7 +97,9 @@ pub fn js_run_code(code: *mut c_char) -> *mut c_char {
 }
 
 fn main() {
-    let code = "++[-]++++++++++-";
+    let code = "+++>+++[-<+>]+++[-<++++>]";
+//    let code = ">+++[->++[->+++<]<+>]";
+    
     let chars: Vec<char> = code.chars().collect();
     let (ast, _) = get_ast(&chars);
     let ast = compact(&ast);

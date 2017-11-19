@@ -30,10 +30,16 @@ enum Wast {
     I32Const(u8), //should be LEB128
     I32Store8,
     I32Load8u,
+    I32Eqz,
     SetLocal(Position),
     GetLocal(Position),
     I32Add,
     I32Sub,
+    Loop,
+    Block,
+    End,
+    Br(u8),
+    BrIf(u8),
 }
 
 impl Wast {
@@ -66,6 +72,7 @@ impl Wast {
                 vec.write_u8(CALL).unwrap();
                 vec.write_u8(n).unwrap(); // alignment
             },
+            _ => {}
         }
     }
 }
@@ -109,12 +116,18 @@ impl fmt::Display for Wast {
             Wast::GetLocal (i) => write!(f, "get_local {}", i),
             Wast::I32Add => write!(f, "i32.add"),
             Wast::I32Sub => write!(f, "i32.sub"),
+            Wast::Block => write!(f, "block"),
+            Wast::Loop => write!(f, "loop"),
+            Wast::End => write!(f, "end"),
+            Wast::Br (i) => write!(f, "br {}", i),
+            Wast::BrIf (i) => write!(f, "br_if {}", i),
+            Wast::I32Eqz => write!(f, "i32.eqz"),
             Wast::Call(i) => write!(f, "call {}", i),
         }
     }
 }
 
-fn to_wasmt (ops: &Op, res : &mut Vec<Wast>) {
+fn to_wasmt (ops: &Op, res : &mut Vec<Wast>, block_no : &mut u8) {
     match *ops {
         Op::IncPointer(n) => {
             res.push(Wast::GetLocal(0));
@@ -160,16 +173,40 @@ fn to_wasmt (ops: &Op, res : &mut Vec<Wast>) {
             res.push(Wast::Call(EXTERNAL_CALL_READ));
             res.push(Wast::I32Store8);
         },
-        _ => ()
+        Op::While {ref ops } => {
+            res.push(Wast::Block);
+            res.push(Wast::Loop);
+
+            res.push(Wast::GetLocal(0));            
+            res.push(Wast::I32Load8u);
+            res.push(Wast::I32Eqz);
+            res.push(Wast::BrIf(1));
+
+            let mut inner_block_number = 0;
+            for o in ops {
+                to_wasmt(o, res, &mut inner_block_number);
+            }
+
+            res.push(Wast::Br(0));
+
+            res.push(Wast::End);
+            res.push(Wast::End);
+        }
     }
 }
 
 
 pub fn to_wasm (ops: &[Op]) {
     let mut wast = vec![];
-
+    
+    let mut block_number = 0;
+    
     for op in ops {
-        to_wasmt(op, &mut wast);
+        to_wasmt(op, &mut wast, &mut block_number);
+    }
+
+    for w in &wast {
+        println!("{}", w);
     }
 
     let module = Module{
@@ -180,7 +217,7 @@ pub fn to_wasm (ops: &[Op]) {
             params : 0
         }, 1, wast)],
     };
-
+    
     // let mut file = File::create("foo.txt").unwrap();
     // file.write_all(&bin).unwrap();;
 
