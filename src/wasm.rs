@@ -103,7 +103,6 @@ struct TypeDef {
     result : bool
 }
 
-
 impl TypeDef {
     fn to_binary (&self, vec: &mut Vec<u8>) {
         vec.write_u8(FUNC).unwrap();
@@ -122,8 +121,11 @@ impl TypeDef {
     }
 }
 
+type Imports = Vec<(Name, Name, TypeDef)>;
+type Functions = Vec<(Name, TypeDef, NumberOfI32, Vec<Wast>)>;
+
 struct Module {
-    imports: Vec<(Name, TypeDef)>,
+    imports: Imports,
     functions: Vec<(Name, TypeDef, NumberOfI32, Vec<Wast>)>
 }
 
@@ -135,29 +137,54 @@ impl Module {
 
                 let mut td_vec = vec![];
                 td_vec.write_u8(elements).unwrap();
-                for &(_, ref td) in &module.imports {
+                for &(_, _, ref td) in &module.imports {
                     td.to_binary(&mut td_vec);
                 }
 
                 for &(_, ref td, _, _) in &module.functions {
                     td.to_binary(&mut td_vec);
                 }
-                const types_section : u8 = 1;
-                vec.write_u8(types_section).unwrap();
+                const TYPES_SECTION : u8 = 1;
+                vec.write_u8(TYPES_SECTION).unwrap();
                 vec.write_u8(td_vec.len() as u8).unwrap();
                 vec.append(&mut td_vec);
             }
         }
 
-        fn import_section (module: &Module, vec: &mut Vec<u8>){
+        fn append_wasm_string(s:&String, vec: &mut Vec<u8>) {
+            let mut bytes = s.clone().into_bytes();
+            vec.write_u8(bytes.len() as u8);
+            vec.append(&mut bytes);
+        }
+
+        fn import_section (imports: &Imports, vec: &mut Vec<u8>){
+            let elements = imports.len() as u8;
+            if imports.len() > 0 {
+                let mut ims_vec = vec![];
+                ims_vec.write_u8(elements).unwrap();
             
+                let mut i = 0;
+                
+                for &(ref module_str, ref field_str, _) in imports {
+                    append_wasm_string(&module_str, &mut ims_vec);
+                    append_wasm_string(&field_str, &mut ims_vec);
+                    ims_vec.write_u8(0).unwrap();//kind
+                    ims_vec.write_u8(i).unwrap();//signature
+                    i+=1;
+                }
+
+                const IMPORTS_SECTION : u8 = 2;
+                vec.write_u8(IMPORTS_SECTION).unwrap();
+                vec.write_u8(ims_vec.len() as u8).unwrap();
+                vec.append(&mut ims_vec);
+            }
         }
 
         vec.write_u32::<LittleEndian>(WASM_MAGIC).unwrap();
         vec.write_u32::<LittleEndian>(WASM_VERSION).unwrap();
 
         types_section(&self, vec);
-
+        import_section(&self.imports, vec);
     }
 }
 
@@ -262,8 +289,8 @@ pub fn to_wasm (ops: &[Op]) {
     }
 
     let module = Module{
-         imports : vec![("print".to_owned(), TypeDef{ result : false, params : 1 }),
-                        ("read".to_owned(), TypeDef{ result : true, params : 0 })],
+         imports : vec![("io".to_owned(), "print".to_owned(), TypeDef{ result : false, params : 1 }),
+                        ("io".to_owned(), "read".to_owned(), TypeDef{ result : true, params : 0 })],
         //imports : vec![],
         functions : vec![("exec".to_owned(), TypeDef{
             result : false,
