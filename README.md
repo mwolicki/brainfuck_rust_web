@@ -1,4 +1,4 @@
-# brainfuck interpreter
+# brainfuck compiler to WASM
 
 using rust, emscripten and webassembly
 
