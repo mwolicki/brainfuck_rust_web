@@ -12,6 +12,7 @@ const FUNC:u8 = 0x60;
 const I32:u8 = 0x7f;
 const GET_LOCAL:u8 = 0x20;
 const SET_LOCAL:u8 = 0x21;
+const TEE_LOCAL:u8 = 0x22;
 const I32_ADD:u8 = 0x6a;
 const I32_SUB:u8 = 0x6b;
 const I32_CONST:u8 = 0x41;
@@ -31,6 +32,7 @@ const WASM_VERSION:u32 = 0x1;
 
 type Position = u8;
 
+#[derive(Clone)]
 enum Wast {
     Call(u8), //should be LEB128
     I32Const(u8), //should be LEB128
@@ -39,6 +41,7 @@ enum Wast {
     I32Eqz,
     SetLocal(Position),
     GetLocal(Position),
+    TeeLocal(Position),
     I32Add,
     I32Sub,
     Loop,
@@ -84,6 +87,10 @@ impl Wast {
                 vec.write_u8(GET_LOCAL).unwrap();
                 vec.write_u8(n).unwrap();
             },
+            Wast::TeeLocal(n) => {
+                vec.write_u8(TEE_LOCAL).unwrap();
+                vec.write_u8(n).unwrap();
+            },
             Wast::Call(n) => {
                 vec.write_u8(CALL).unwrap();
                 vec.write_u8(n).unwrap();
@@ -100,6 +107,32 @@ impl Wast {
     }
 }
 
+
+fn simple_optimasation(code:&Vec<Wast>) -> Vec<Wast> {
+    let mut r = vec![];
+
+    let mut i = 0;
+    let len = code.len ();
+    while i < len {
+        let op =  if i + 1 < len {
+            match (&code[i], &code[i+1]) {
+                (&Wast::SetLocal(ref a), &Wast::GetLocal(ref b)) if a == b =>
+                    {
+                        i+=1;
+                        Wast::TeeLocal(a.clone())
+                    },
+                (w, _) => w.clone()
+            }
+        }
+        else{
+            code[i].clone()
+        };
+
+        r.push(op);
+        i+=1;
+    }
+    r
+}
 
 type Name = String;
 type NumberOfI32 = u8;
@@ -295,6 +328,7 @@ impl fmt::Display for Wast {
             Wast::I32Load8u => write!(f, "i32.load8_u"),
             Wast::SetLocal (i) => write!(f, "set_local {}", i),
             Wast::GetLocal (i) => write!(f, "get_local {}", i),
+            Wast::TeeLocal (i) => write!(f, "tee_local {}", i),
             Wast::I32Add => write!(f, "i32.add"),
             Wast::I32Sub => write!(f, "i32.sub"),
             Wast::Block => write!(f, "block"),
@@ -382,6 +416,8 @@ pub fn to_wasm (ops: &[Op]) -> Vec<u8> {
     for op in ops {
         to_wasmt(op, &mut wast);
     }
+
+    let wast = simple_optimasation(&wast);
 
     let module = Module{
          imports : vec![("io".to_owned(), "print".to_owned(), TypeDef{ result : false, params : 1 }),
