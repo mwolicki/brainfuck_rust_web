@@ -2,6 +2,10 @@
 name = "brainfuck_webassembly"
 version = "0.1.0"
 authors = ["Marcin Wolicki <marcin.wolicki@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 byteorder = "1.1.0"
+
+[dev-dependencies]
+proptest = "1"

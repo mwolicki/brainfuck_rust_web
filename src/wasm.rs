@@ -1,9 +1,9 @@
 
 use byteorder::{WriteBytesExt, LittleEndian};
 
-use brainfuck::*;
+use crate::brainfuck::*;
 use std::fmt;
-use leb128;
+use crate::leb128;
 
 const EXTERNAL_CALL_PRINT:u8 = 0;
 const EXTERNAL_CALL_READ:u8 = 1;
